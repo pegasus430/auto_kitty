@@ -54,14 +54,15 @@ def extract_image_name(image_url):
     return clean_image_name
 
 # Function to post the article on Wordpress
-def post_news(article_title, article_body, post_status="draft", featured_media_id=0):
+def post_news(article_title, article_body, post_status="draft", featured_media_id=0, excerpt=""):
     post_data = {
         'title': article_title,
         "content": article_body,
         "comment_status": "closed",
         "categories": [1],
         "status": post_status,
-        "featured_media": featured_media_id
+        "featured_media": featured_media_id,
+        "excerpt": excerpt,
     }
     try:
         response = requests.post(wp_post_url, headers=header, json=post_data)
@@ -114,7 +115,7 @@ try:
         for index, row in enumerate(csv_reader, start=1):
             url = row.get('URL')
             
-            if url and index == 2:
+            if url and index == 46:
                 try:
                     news_content = ''
                     print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -135,6 +136,12 @@ try:
                     byline_element = soup.find('h4', class_='byline')
                     title = soup.find('h1').text.strip()
                     standfirst = soup.find('p', class_='standfirst').text.strip()
+
+                    # Find the meta tag with name="description"
+                    meta_description = soup.find('meta', attrs={'name': 'description'})
+
+                    # Get the content attribute
+                    meta_description_content = meta_description['content']
 
                     # Split the byline by '|' and extract Author and Date
                     byline_parts = byline_element.text.strip().split('|')
@@ -226,6 +233,7 @@ try:
                         'Date': date,
                         'Title': title,
                         'Standfirst': standfirst,
+                        'Meta': meta_description_content,
                         'Header Image': ', '.join(header_image_names),
                         'Content Images': ', '.join([media['Image Name'] for media in media_data]),
                         'Content Captions': ', '.join([media['Image Caption'] for media in media_data]),
@@ -235,20 +243,6 @@ try:
 
                     print(f"  - Scraped ({index}/{total_urls}): {url}")
                     
-
-                    data_news = {
-                        'URL': url,
-                        'Author': author,
-                        'Date': date,
-                        'Title': title,
-                        'Standfirst': standfirst,
-                        'Header Image': ', '.join(header_image_names),
-                        'Content Images': content_images,
-                        'Content Captions': content_captions,
-                        'Text Sections': text_section_data,
-                        'YouTube Iframes': youtube_iframes,
-                    }
-
                     try:
                         # upload hero image file to media on WP as featured image.                        
                         new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
@@ -369,9 +363,8 @@ try:
                         # Post the news with all scrapped content
                         post_title = url.split('/content/')[1]
                         post_title = post_title.replace('-', ' ')
-                        post_news(post_title, news_content, 'publish', new_hero_image_id)
-                        
-                        
+                        post_news(post_title, news_content, 'publish', new_hero_image_id, meta_description_content)
+                          
                     except Exception as e:
                         print(f"   Error while posting the contents on WP: {e}")
 
