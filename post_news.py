@@ -26,12 +26,12 @@ csv_file = 'news.csv'
 extracted_data = []
 
 # Initialize the target wordpress URL and authentication information.
-wp_url = "https://wanderlusttdev.wpengine.com/wp-json/wp/v2"
+wp_url = "https://wanderlusttstg.wpengine.com//wp-json/wp/v2"
 wp_post_url = wp_url + "/news"
 wp_theme_rul = wp_url + "/theme"
 wp_media_url = wp_url + "/media"
 user_id = "mihailo"
-user_app_password = "G4cx VWtp oOiA 6Wo0 Vq98 gKE4"
+user_app_password = "bWOV MTvf MEB3 hWts DVKd zGpu"
 
 credentials = user_id + ':' + user_app_password
 token = base64.b64encode(credentials.encode())
