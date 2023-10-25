@@ -115,7 +115,7 @@ try:
         for index, row in enumerate(csv_reader, start=1):
             url = row.get('URL')
             
-            if url and index == 46:
+            if url:
                 try:
                     news_content = ''
                     print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -264,47 +264,51 @@ try:
                         # Iteration of text secion and image block
                         
                         for index, text_section in enumerate(text_section_data):
-                            # replace all /content/ to /news/
-                            text_section = text_section.replace('/content/', '/news/')
-
-                            # get h2 tag in the content
-                            h2_text = ''
-                            h2_soup = BeautifulSoup(text_section, 'html.parser')
-                            h2_obj = h2_soup.find('h2')
-
-                            if h2_obj != None:
-                                h2_text = h2_obj.text
                             
-                            # remove h2 tag from the text section
-                            if h2_text != '':
-                                first_h2_tag = h2_soup.find('h2')
-                                if first_h2_tag:
-                                    first_h2_tag.extract()
+                            if ('umb://document' in text_section) and (index == len(text_section_data) -1 ): # no need More news section
+                                pass
+                            else: 
+                                # replace all /content/ to /news/
+                                text_section = text_section.replace('/content/', '/news/')
 
-                                text_section = str(h2_soup)
+                                # get h2 tag in the content
+                                h2_text = ''
+                                h2_soup = BeautifulSoup(text_section, 'html.parser')
+                                h2_obj = h2_soup.find('h2')
+
+                                if h2_obj != None:
+                                    h2_text = h2_obj.text
                                 
-                            # Checking the text secion is empty or not
+                                # remove h2 tag from the text section
+                                if h2_text != '':
+                                    first_h2_tag = h2_soup.find('h2')
+                                    if first_h2_tag:
+                                        first_h2_tag.extract()
 
-                            spacer_flag = True
-                            if text_section == '<div class="textSection">\n\n</div>' or text_section == '<div class="textSection">\n\n<p>\xa0</p>\n</div>':
-                                spacer_flag = False
+                                    text_section = str(h2_soup)
+                                    
+                                # Checking the text secion is empty or not
 
-                            # josn data for text section.
-                            wp_text_section_advert = {
-                                "name":"wak/news-copy-image-advert",
-                                "data":{
-                                    "wak_block_visibility":"all",
-                                    "title": h2_text,
-                                    "_title": "field_652d542d71c0f",
-                                    "copy": text_section,
-                                    "_copy":'field_652d547571c11',
-                                    "advert":"0"
-                                },
-                                "mode":"edit"
-                            }
-                            news_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_text_section_advert) + ' /-->'
-                            if spacer_flag:
-                                news_content +=  wp_spaceer_content
+                                spacer_flag = True
+                                if text_section == '<div class="textSection">\n\n</div>' or text_section == '<div class="textSection">\n\n<p>\xa0</p>\n</div>':
+                                    spacer_flag = False
+
+                                # josn data for text section.
+                                wp_text_section_advert = {
+                                    "name":"wak/news-copy-image-advert",
+                                    "data":{
+                                        "wak_block_visibility":"all",
+                                        "title": h2_text,
+                                        "_title": "field_652d542d71c0f",
+                                        "copy": text_section,
+                                        "_copy":'field_652d547571c11',
+                                        "advert":"0"
+                                    },
+                                    "mode":"edit"
+                                }
+                                news_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_text_section_advert) + ' /-->'
+                                if spacer_flag:
+                                    news_content +=  wp_spaceer_content
                             
                             if index < len(content_images):
                                 # upload content image file to media on WP
