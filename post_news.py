@@ -265,7 +265,7 @@ try:
                         
                         for index, text_section in enumerate(text_section_data):
                             
-                            if ('umb://document' in text_section) and (index == len(text_section_data) -1 ): # no need More news section
+                            if len(text_section_data) > 1 and ('umb://document' in text_section) and (index == len(text_section_data) -1 ): # no need More news section
                                 pass
                             else: 
                                 # replace all /content/ to /news/
@@ -364,9 +364,22 @@ try:
                             }
                             news_content += '<!-- wp:wak/news-author-footer ' + json.dumps(wp_author_advert) + ' /-->' + wp_spaceer_content
 
-                        # Post the news with all scrapped content
+                        #adding more news section on the block
+                        wp_more_news = {
+                            "name": "wak/more-news",
+                            "data":{
+                                "wak_block_visibility":"all",
+                                "title": "Explore more",
+                                "_title": "field_652d542d71c0f",
+                            }
+                        }
+                        news_content += '<!-- wp:wak/more-news ' + json.dumps(wp_more_news) + ' /-->' + wp_spaceer_content
+                        
+                        # get post title from original title url
                         post_title = url.split('/content/')[1]
                         post_title = post_title.replace('-', ' ')
+                        
+                        # Post the news with all scrapped content
                         post_news(post_title, news_content, 'publish', new_hero_image_id, meta_description_content)
                           
                     except Exception as e:
