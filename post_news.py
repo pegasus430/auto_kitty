@@ -148,7 +148,7 @@ try:
                     if len(byline_parts) == 2:
                         author, date = byline_parts[0].strip(), byline_parts[1].strip()
                     else:
-                        author, date = byline_element.text.strip(), ''
+                        author, date = '', byline_element.text.strip()
 
                     # Find the header image in @media query with max-width: 2000px
                     header_images = []
