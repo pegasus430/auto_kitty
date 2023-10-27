@@ -405,7 +405,7 @@ def process_inspiration():
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')
                 
-                if url and index == 2:
+                if url:
                     try:
                         inspiration_content = ''
                         print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -545,18 +545,18 @@ def process_inspiration():
                             # upload hero image file to media on WP as featured image.                        
                             new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
                             # json data for news article hero
-                            wp_article_hero_content = {
-                                "name":"wak/news-article-hero",
+                            wp_destination_article_header_content = {
+                                "name":"wak/destination-article-header",
                                 "data":{
                                     "wak_block_visibility": "all",
                                     "title": title,
-                                    "subtitle": standfirst,
-                                    "use_featured": 1 ,
-                                    "image": new_hero_image_id,
+                                    "excerpt": standfirst,                                   
+                                    "image":new_hero_image_id,
+                                    "date": date
                                     },
                                 "mode":"edit"
                             }
-                            inspiration_content +=  '<!-- wp:wak/news-article-hero ' + json.dumps(wp_article_hero_content) + ' /-->'
+                            inspiration_content +=  '<!-- wp:wak/destination-article-header ' + json.dumps(wp_destination_article_header_content) + ' /-->'
                             
 
                             # Iteration of text secion and image block
