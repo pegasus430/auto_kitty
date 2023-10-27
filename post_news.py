@@ -551,8 +551,8 @@ def process_inspiration():
                                     "wak_block_visibility": "all",
                                     "title": title,
                                     "excerpt": standfirst,                                   
-                                    "image":new_hero_image_id,
-                                    "date": date
+                                    "image": new_hero_image_id,
+                                    "date":  date
                                     },
                                 "mode":"edit"
                             }
@@ -610,7 +610,7 @@ def process_inspiration():
                                             },
                                             "mode":"edit"
                                         }
-                                    news_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_iframe_section_advert) + ' /-->' + wp_spaceer_content
+                                    inspiration_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_iframe_section_advert) + ' /-->'
                             
                             
                             # get post title from original title url
