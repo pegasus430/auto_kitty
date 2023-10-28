@@ -20,7 +20,7 @@ os.makedirs(content_image_directory, exist_ok=True)
 
 # Define the CSV file containing news article data
 news_csv_file = 'news.csv'
-ins_csv_file = 'inspiration.csv'
+ins_csv_file = 'articles_inspiration_urls.csv'
 
 # Initialize a list to store extracted data
 extracted_data = []
@@ -73,6 +73,31 @@ def post_news(url, article_title, article_body, post_status="draft", featured_me
         print (f"Error while posting the article! '{article_title}'")
         response = ""
     
+# Function topost the inspiration articles on Wordpress
+def post_inspiration(url, article_title, article_body, post_status="draft", featured_media_id=0, excerpt="", destination="", inspiration =[]):
+    post_data = {
+        'title': article_title,
+        "content": article_body,
+        "comment_status": "closed",
+        "categories": [1],
+        "status": post_status,
+        "featured_media": featured_media_id,
+        "excerpt": excerpt,
+        "inspiration": inspiration,
+        "acf": {
+            "destination": destination,
+        }
+    }
+    try:
+        response = requests.post(url, headers=header, json=post_data)
+        if response.status_code == 201:
+            print(f'  - Article posted "{article_title}" successfully!')
+        else:
+            print(f'Error creating custom post. Status code: {response.status_code}')
+    except:
+        print (f"Error while posting the article! '{article_title}'")
+        response = ""
+
 # Function to post the file on Wordpress Media library
 def post_file(file_path):
     try:        
@@ -395,6 +420,19 @@ def process_post_news():
 #Function for posting the inspiration while scraping the inspiration content
 def process_inspiration():
     # Read URLs from the CSV file and validate them
+    inspiration_list = {
+        "Outdoors & Walking": 18,
+        "Culture & Heritage": 14,
+        "Rail": 16,
+        "Food & Drink": 21,
+        "Sustainable Travel": 15,
+        "Solo Travel": 17,
+        "Sleeps": 19,
+        "Nature & Wildlife": 20,
+        "Trips": 22,
+        "Promoted Journeys": 23
+    }
+
     try:
         with open(ins_csv_file, 'r') as file:
             csv_reader = csv.DictReader(file)
@@ -405,7 +443,36 @@ def process_inspiration():
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')
                 
-                if url:
+                # get inspiration category list from CSV
+                inspiration_data = []
+                inspiration_category = row.get('Content')
+                inspiration_category = inspiration_category.split(';')
+                for inspiration_text in inspiration_category:
+                    if inspiration_text in inspiration_list:
+                        inspiration_data.append(inspiration_list[inspiration_text])
+
+                # get destination array from CSV         
+               
+                destination_id = 0
+                country = row.get('Countries')
+                if country:
+                    slug_country_name = country.lower().replace(' ', '-')
+
+                    response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
+                    if response.status_code == 200:
+                        response = response.json()
+                        if response:
+                            destination_id = response[0].get('id')
+                        else:
+                            slug_country_name += "-2"
+                            response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
+                            if response.status_code == 200:
+                                response = response.json()
+                                if response:
+                                    destination_id = response[0].get('id')
+                    
+                
+                if url and index < 10:
                     try:
                         inspiration_content = ''
                         print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -618,7 +685,7 @@ def process_inspiration():
                             post_title = post_title.replace('-', ' ')
                             
                             # Post the news with all scrapped content
-                            post_news(wp_inspiration_url, post_title, inspiration_content, 'publish', new_hero_image_id, meta_description_content)
+                            post_inspiration(wp_inspiration_url, post_title, inspiration_content, 'publish', new_hero_image_id, meta_description_content, destination_id, inspiration_data)
                             
                         except Exception as e:
                             print(f"   Error while posting the contents on WP: {e}")
@@ -628,6 +695,7 @@ def process_inspiration():
                     except Exception as e:
                         print(f"  Error analyzing {url} ({index}/{total_urls}): {e}")
             
+                
             # print(extracted_data)
     except FileNotFoundError:
         print(f"CSV file '{ins_csv_file}' not found.")
