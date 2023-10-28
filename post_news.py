@@ -75,26 +75,38 @@ def post_news(url, article_title, article_body, post_status="draft", featured_me
     
 # Function topost the inspiration articles on Wordpress
 def post_inspiration(url, article_title, article_body, post_status="draft", featured_media_id=0, excerpt="", destination="", inspiration =[]):
-    post_data = {
-        'title': article_title,
-        "content": article_body,
-        "comment_status": "closed",
-        "categories": [1],
-        "status": post_status,
-        "featured_media": featured_media_id,
-        "excerpt": excerpt,
-        "inspiration": inspiration,
-        "acf": {
-            "destination": destination,
+    if destination:
+        post_data = {
+            'title': article_title,
+            "content": article_body,
+            "comment_status": "closed",
+            "categories": [1],
+            "status": post_status,
+            "featured_media": featured_media_id,
+            "excerpt": excerpt,
+            "inspiration": inspiration,
+            "acf": {
+                "destination": destination,
+            }
         }
-    }
+    else:
+        post_data = {
+            'title': article_title,
+            "content": article_body,
+            "comment_status": "closed",
+            "categories": [1],
+            "status": post_status,
+            "featured_media": featured_media_id,
+            "excerpt": excerpt,
+            "inspiration": inspiration,
+        }
     try:
         response = requests.post(url, headers=header, json=post_data)
         if response.status_code == 201:
             print(f'  - Article posted "{article_title}" successfully!')
         else:
             print(f'Error creating custom post. Status code: {response.status_code}')
-    except:
+    except Exception as e:
         print (f"Error while posting the article! '{article_title}'")
         response = ""
 
@@ -442,37 +454,38 @@ def process_inspiration():
 
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')
-                
-                # get inspiration category list from CSV
-                inspiration_data = []
-                inspiration_category = row.get('Content')
-                inspiration_category = inspiration_category.split(';')
-                for inspiration_text in inspiration_category:
-                    if inspiration_text in inspiration_list:
-                        inspiration_data.append(inspiration_list[inspiration_text])
+                if url:
+                    # get inspiration category list from CSV
+                    inspiration_data = []
+                    inspiration_category = row.get('Content')
+                    inspiration_category = inspiration_category.split(';')
+                    for inspiration_text in inspiration_category:
+                        if inspiration_text in inspiration_list:
+                            inspiration_data.append(inspiration_list[inspiration_text])
 
-                # get destination array from CSV         
-               
-                destination_id = 0
-                country = row.get('Countries')
-                if country:
-                    slug_country_name = country.lower().replace(' ', '-')
-
-                    response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
-                    if response.status_code == 200:
-                        response = response.json()
-                        if response:
-                            destination_id = response[0].get('id')
-                        else:
-                            slug_country_name += "-2"
-                            response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
-                            if response.status_code == 200:
-                                response = response.json()
-                                if response:
-                                    destination_id = response[0].get('id')
-                    
+                    # get destination array from CSV         
                 
-                if url and index < 10:
+                    destination_id = ''
+                    country = row.get('Countries')
+
+                    if country:
+                        slug_country_name = country.lower().replace(' ', '-')
+
+                        response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
+                        if response.status_code == 200:
+                            response = response.json()
+                            if response:
+                                destination_id = response[0].get('id')
+                            else:
+                                slug_country_name += "-2"
+                                response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
+                                if response.status_code == 200:
+                                    response = response.json()
+                                    if response:
+                                        destination_id = response[0].get('id')
+                        
+                
+                
                     try:
                         inspiration_content = ''
                         print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -609,21 +622,23 @@ def process_inspiration():
                         print(f"  - Scraped ({index}/{total_urls}): {url}")
 
                         try:
-                            # upload hero image file to media on WP as featured image.                        
-                            new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
-                            # json data for news article hero
-                            wp_destination_article_header_content = {
-                                "name":"wak/destination-article-header",
-                                "data":{
-                                    "wak_block_visibility": "all",
-                                    "title": title,
-                                    "excerpt": standfirst,                                   
-                                    "image": new_hero_image_id,
-                                    "date":  date
-                                    },
-                                "mode":"edit"
-                            }
-                            inspiration_content +=  '<!-- wp:wak/destination-article-header ' + json.dumps(wp_destination_article_header_content) + ' /-->'
+                            new_hero_image_id = 0
+                            if header_image_names:
+                                # upload hero image file to media on WP as featured image.                        
+                                new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
+                                # json data for news article hero
+                                wp_destination_article_header_content = {
+                                    "name":"wak/destination-article-header",
+                                    "data":{
+                                        "wak_block_visibility": "all",
+                                        "title": title,
+                                        "excerpt": standfirst,                                   
+                                        "image": new_hero_image_id,
+                                        "date":  date
+                                        },
+                                    "mode":"edit"
+                                }
+                                inspiration_content +=  '<!-- wp:wak/destination-article-header ' + json.dumps(wp_destination_article_header_content) + ' /-->'
                             
 
                             # Iteration of text secion and image block
