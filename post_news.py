@@ -464,7 +464,6 @@ def process_inspiration():
                             inspiration_data.append(inspiration_list[inspiration_text])
 
                     # get destination array from CSV         
-                
                     destination_id = ''
                     country = row.get('Countries')
 
@@ -539,13 +538,19 @@ def process_inspiration():
                             header_image_names.append(image_name)
 
                             # Download the image
-                            image_url = image_url.split('?')[0]
-                            image_response = requests.get(image_url, timeout=10)
+                            original_image_url = image_url.split('?')[0]
+                            image_response = requests.get(original_image_url, timeout=10)
                             if image_response.status_code == 200:
                                 with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
                                     image_file.write(image_response.content)
-                            else:
-                                header_image_names.pop()  # Remove the image name if download fails
+                            else: # if failed with original image url, try again with long and anchor image url
+                                image_response = requests.get(image_url, timeout=10)
+                                if image_response.status_code == 200:
+                                    with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
+                                        image_file.write(image_response.content)
+                                else:    
+                                    header_image_names.pop()  # Remove the image name if download fails    
+                                
 
                         # Extract all .media elements while maintaining their HTML structure
                         media_sections = soup.select('.media')
