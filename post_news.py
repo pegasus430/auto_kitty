@@ -24,7 +24,7 @@ ins_csv_file = 'articles_inspiration_urls.csv'
 
 # Initialize a list to store extracted data
 extracted_data = []
-
+alarm_message = []
 # Initialize the target wordpress URL and authentication information.
 wp_url = "https://wanderlusttstg.wpengine.com//wp-json/wp/v2"
 wp_post_url = wp_url + "/news"
@@ -118,8 +118,8 @@ def post_file(file_path):
         response = response.json()
         image_id = response.get('id')
         print(f'  - posted image file {file_path}')
-    except:
-        print('  - Error while uploading the image')
+    except Exception as e:
+        print(f'  - Error while uploading the image {e}')
         response = ""
         return 0
     return image_id
@@ -482,9 +482,6 @@ def process_inspiration():
                                     response = response.json()
                                     if response:
                                         destination_id = response[0].get('id')
-                        
-                
-                
                     try:
                         inspiration_content = ''
                         print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -644,7 +641,8 @@ def process_inspiration():
                                     "mode":"edit"
                                 }
                                 inspiration_content +=  '<!-- wp:wak/destination-article-header ' + json.dumps(wp_destination_article_header_content) + ' /-->'
-                            
+                            else:
+                                alarm_message.append(f' --- No header image {index + 1}th URL {url} ')
 
                             # Iteration of text secion and image block
                             for index, text_section in enumerate(text_section_data):
@@ -723,6 +721,10 @@ def process_inspiration():
 def main():
     # process_post_news()
     process_inspiration()
+    if len(alarm_message):
+        print(alarm_message)
+    else:
+        print(' All done successfully.')
 
 if __name__ == "__main__":
     main()
