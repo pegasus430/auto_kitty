@@ -600,7 +600,10 @@ def process_inspiration():
                         author_id = 23   # default author is team wanderlust
                         page = 1
                         print(f'  - author name is {author}')
-                        if author:
+                        non_author_name_list = ['Insider Secrets', 'Weird@Wanderlus', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
+                        if author in non_author_name_list:
+                            pass
+                        else:
                             while True:
                                 response = requests.get(wp_users_url, headers=header, params={'per_page': 100, 'page': page})
                                 print(f'  - finding author id : {page}page filter done')
