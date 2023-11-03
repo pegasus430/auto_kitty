@@ -600,8 +600,8 @@ def process_inspiration():
                         author_id = 23   # default author is team wanderlust
                         page = 1
                         print(f'  - author name is {author}')
-                        non_author_name_list = ['Insider Secrets', 'Weird@Wanderlus', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
-                        if author in non_author_name_list:
+                        non_author_name_list = ['Travelling local', 'Insider Secrets', 'Weird@Wanderlus', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
+                        if author in non_author_name_list or author == '':
                             pass
                         else:
                             while True:
@@ -846,7 +846,11 @@ def process_inspiration():
                             
                            
                             # get post title from original title url
-                            post_title = url.split('/content/')[1]
+                            if '/content/' in url :
+                                post_title = url.split('/content/')[1]
+                            else:
+                                post_title = url.split('/')[-1]
+                                post_title = post_title.split('.')[0]
                             # post_title = post_title.replace('-', ' ')
                             
                             if not update_flag:
