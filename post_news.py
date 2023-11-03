@@ -89,16 +89,16 @@ def post_news(url, article_title, article_body, post_status="draft", featured_me
 def post_inspiration(url, slug, article_title, author_id, author, date, article_body, post_status="draft", featured_media_id=0, standfirst="", destination_id_list = [], inspiration =[]):
     if len(destination_id_list):
         post_data = {
-            'slug': slug,
-            'title': article_title,
-            'author': author_id,
-            'date': date,
-            "content": article_body,
+            'slug':     slug,
+            'title':    article_title,
+            'author':   author_id,
+            'date':     date,
+            "content":  article_body,
             "comment_status": "closed",
             "categories": [1],
-            "status": post_status,
+            "status":   post_status,
             "featured_media": featured_media_id,
-            "excerpt": standfirst,
+            "excerpt":  standfirst,
             "inspiration": inspiration,
             "acf": {
                 "destination": destination_id_list,
@@ -107,16 +107,16 @@ def post_inspiration(url, slug, article_title, author_id, author, date, article_
         }
     else:
         post_data = {
-            'slug' : slug,
-            'title': article_title,
-            'author': author_id,
-            'date': date,
-            "content": article_body,
+            'slug' :    slug,
+            'title':    article_title,
+            'author':   author_id,
+            'date':     date,
+            "content":  article_body,
             "comment_status": "closed",
             "categories": [1],
-            "status": post_status,
+            "status":   post_status,
             "featured_media": featured_media_id,
-            "excerpt": standfirst,
+            "excerpt":  standfirst,
             "inspiration": inspiration,
             "acf": {
                 "wak_author_name": author,
@@ -541,6 +541,9 @@ def process_inspiration():
                             if country == 'Burma/Myanmar':
                                 slug_country_name = 'myanmar-burma'
                             
+                            # Svalbard (Spitsbergen)'s slug name
+                            if country == 'Svalbard (Spitsbergen)':
+                                slug_country_name = 'svalbard'
 
                             destination_id = 0
                             response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
@@ -600,7 +603,7 @@ def process_inspiration():
                         author_id = 23   # default author is team wanderlust
                         page = 1
                         print(f'  - author name is {author}')
-                        non_author_name_list = ['Travelling local', 'Insider Secrets', 'Weird@Wanderlus', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
+                        non_author_name_list = ['Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
                         if author in non_author_name_list or author == '':
                             pass
                         else:
