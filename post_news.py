@@ -601,6 +601,8 @@ def process_inspiration():
                             if country == 'The Arctic':
                                 slug_country_name = 'arctic'
                             
+                            if country == 'Czechia':
+                                slug_country_name = 'czech-republic'
 
                             destination_id = 0
                             response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
@@ -1002,8 +1004,10 @@ def process_promoted_articles():
 
                             if country == 'The Arctic':
                                 slug_country_name = 'arctic'
-                            
 
+                            if country == 'Czechia':
+                                slug_country_name = 'czech-republic'
+                            
                             destination_id = 0
                             response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
                             if response.status_code == 200:
