@@ -707,7 +707,7 @@ def process_inspiration():
 
                             # Download the image
                             original_image_url = image_url.split('?')[0]
-                            image_response = requests.get(original_image_url, timeout=10)
+                            image_response = requests.get(original_image_url, timeout=20)
                             if image_response.status_code == 200:
                                 with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
                                     image_file.write(image_response.content)
@@ -892,7 +892,7 @@ def process_inspiration():
                             # put the youtube iframes into the content
                             if len(youtube_iframes):
                                 for iframe in youtube_iframes:
-                                    inspiration_content += '<!-- wp:wak/paragraph ' + iframe + '<!-- /wp:paragraph -->'
+                                    inspiration_content += '<!-- wp:wak/paragraph -->' + iframe + '<!-- /wp:paragraph -->'
                             
                            
                             # get post title from original title url
@@ -973,7 +973,7 @@ def process_promoted_articles():
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')    
                 promoter_name = row.get('Promoted value')
-                if url and index > 1 and index < 5:
+                if url:
                     print(f"# Start Scraping ({index}/{total_urls}): {url}")
                     
                     # get inspiration category list from CSV
@@ -1105,7 +1105,7 @@ def process_promoted_articles():
 
                             # Download the image
                             original_image_url = image_url.split('?')[0]
-                            image_response = requests.get(original_image_url, timeout=10)
+                            image_response = requests.get(original_image_url, timeout=20)
                             if image_response.status_code == 200:
                                 with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
                                     image_file.write(image_response.content)
@@ -1290,7 +1290,7 @@ def process_promoted_articles():
                             # put the youtube iframes into the content
                             if len(youtube_iframes):
                                 for iframe in youtube_iframes:
-                                    inspiration_content += '<!-- wp:wak/paragraph ' + iframe + '<!-- /wp:paragraph -->'
+                                    inspiration_content += '<!-- wp:wak/paragraph -->' + iframe + '<!-- /wp:paragraph -->'
                            
                             # get post title from original title url
                             if '/content/' in url :
@@ -1318,8 +1318,8 @@ def process_promoted_articles():
 
 def main():
     # process_post_news()
-    process_inspiration()
-    # process_promoted_articles()
+    # process_inspiration()
+    process_promoted_articles()
     if len(error_log):
         print(error_log)
     else:
