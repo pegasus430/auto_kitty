@@ -66,24 +66,29 @@ def extract_image_name(image_url):
     return clean_image_name
 
 # Function to post the article on Wordpress
-def post_news(url, article_title, article_body, post_status="draft", featured_media_id=0, excerpt=""):
+def post_news(url, slug, title, article_body, author, author_id, date, post_status="draft", featured_media_id=0, standfirst=""):
+    
     post_data = {
-        'title': article_title,
+        "slug": slug,
+        "title": title,
         "content": article_body,
         "comment_status": "closed",
         "categories": [1],
         "status": post_status,
         "featured_media": featured_media_id,
-        "excerpt": excerpt,
+        "excerpt": standfirst,   
+        "date": date,
     }
     try:
         response = requests.post(url, headers=header, json=post_data)
         if response.status_code == 201:
-            print(f'  - Article posted "{article_title}" successfully!')
+            print(f'  - Article posted "{title}" successfully!')
         else:
             print(f'Error creating custom post. Status code: {response.status_code}')
+            error_log.append(f'Error creating custom post. {slug} Status code: {response.status_code}')
     except:
-        print (f"Error while posting the article! '{article_title}'")
+        print (f"Error while posting the article! '{title}'")
+        error_log.append(f"Error while posting the article! '{title}'")
         response = ""
     
 # Function to post the inspiration articles on Wordpress
@@ -240,24 +245,84 @@ def post_file(file_path):
         return 0
     return image_id
 
+# Function to get the country list from the WP
+def get_country_id_list(index, countries):
+    # get destination array from CSV         
+    destination_id_list = []
+    
+    if countries:
+        countries = countries.split(';')
+        for country in countries:
+            slug_country_name = country.lower().replace(' ', '-')
+
+            # Burma' s slug name is different
+            if country == 'Burma/Myanmar':
+                slug_country_name = 'myanmar-burma'
+            
+            # Svalbard (Spitsbergen)'s slug name
+            if country == 'Svalbard (Spitsbergen)':
+                slug_country_name = 'svalbard'
+
+            if country == 'The Arctic':
+                slug_country_name = 'arctic'
+            
+            if country == 'Czechia':
+                slug_country_name = 'czech-republic'
+
+            destination_id = 0
+            response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
+            if response.status_code == 200:
+                response = response.json()
+                if response:
+                    destination_id = response[0].get('id')
+                    destination_id_list.append(destination_id)
+                else:
+                    slug_country_name += "-2"
+                    response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
+                    if response.status_code == 200:
+                        response = response.json()
+                        if response:
+                            destination_id = response[0].get('id')
+                            destination_id_list.append(destination_id)
+            if destination_id == 0:
+                error_log.append(f'  - No country id for {index} - {country}')
+    
+    return destination_id_list
+    
+def get_author_id_list(index, author):
+    author_id = 23
+    page = 1                        
+    non_author_name_list = ['Wander Woman', 'Freewheeling','Charity and Volunteer', 'Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
+    if author in non_author_name_list or author == '':
+        pass
+    else:
+        while True:
+            response = requests.get(wp_users_url, headers=header, params={'per_page': 100, 'page': page})
+            print(f'  - finding author id : {page}page filter done')
+            if response.status_code == 200:
+                users = response.json()
+                if len(users) == 0:
+                    print(' Not found the user')
+                    break
+
+                author_list = [user for user in users if user.get('name') == author ]
+
+                if author_list:
+                    author_id = author_list[0].get('id')
+                    break
+                page +=1
+            else:
+                print(f"  - unable to fetch user data {response.status_code}")
+                author_id = 23
+
+        print(f'  - author id is {author_id}')
+        if author_id == 23:
+            error_log.append(f'  - No author id for index {index}th URL, author: {author}')    
+
+    return author_id
+
 # Function for posting the news while scrapping the news content
 def process_post_news():    
-    # json data for gutenberg space block
-    space_template = {
-        "name":"wak/spacer", 
-        "data":{ 
-            "wak_block_visibility":"all",
-            "mobile_space":"90",
-            "tablet_space":"90",
-            "desktop_space":"110",
-            "theme":"0",
-            },
-        "mode":"edit"
-    }
-
-    # spacer content for gutenberg style
-    wp_spaceer_content = '<!-- wp:wak/spacer ' + json.dumps(space_template) +' /-->'
-
     # Read URLs from the CSV file and validate them
     try:
         with open(news_csv_file, 'r') as file:
@@ -268,8 +333,7 @@ def process_post_news():
 
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')
-                
-                if url:
+                if url:      
                     try:
                         news_content = ''
                         print(f"# Start Scraping ({index}/{total_urls}): {url}")
@@ -304,6 +368,11 @@ def process_post_news():
                         else:
                             author, date = '', byline_element.text.strip()
 
+                        # Find the author id from the WP via api
+                        author_id = 23   # default author is team wanderlust
+                        print(f'  - author name is {author}')
+                        author_id = get_author_id_list(index, author)
+
                         # Find the header image in @media query with max-width: 2000px
                         header_images = []
 
@@ -324,7 +393,7 @@ def process_post_news():
 
                             # Download the image
                             image_url = image_url.split('?')[0]
-                            image_response = requests.get(image_url, timeout=10)
+                            image_response = requests.get(image_url, timeout=20)
                             if image_response.status_code == 200:
                                 with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
                                     image_file.write(image_response.content)
@@ -361,11 +430,17 @@ def process_post_news():
                             text_section_html = str(text_section)
                             text_section_data.append(text_section_html)
 
+                        # Extract headings
+                        floating_header_data = []
+                        floating_headers = soup.select('.floatingHeader')
+                        for floating_header in floating_headers:
+                            floating_header_html = str(floating_header)
+                            floating_header_data.append(floating_header_html)
+
                         # Find and extract YouTube iframes
                         youtube_iframes = []
                         iframes = soup.find_all('iframe')
                         for iframe in iframes:
-
                             # Check if the iframe is a YouTube embed
                             if 'youtube.com' in iframe['src']:
                                 youtube_iframes.append(str(iframe))
@@ -401,140 +476,68 @@ def process_post_news():
                             # upload hero image file to media on WP as featured image.                        
                             new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
 
-                            # json data for news article hero
-                            wp_article_hero_content = {
-                                "name":"wak/news-article-hero",
-                                "data":{
-                                    "wak_block_visibility": "all",
-                                    "title": title,
-                                    "subtitle": standfirst,
-                                    "use_featured": 1 ,
-                                    "image": new_hero_image_id,
-                                    },
-                                "mode":"edit"
-                            }
-                            news_content +=  '<!-- wp:wak/news-article-hero ' + json.dumps(wp_article_hero_content) + ' /-->' + wp_spaceer_content 
-                            
                             # Iteration of text secion and image block
-                            
-                            for index, text_section in enumerate(text_section_data):
+                            for idx, text_section in enumerate(text_section_data):
                                 
-                                if len(text_section_data) > 1 and ('umb://document' in text_section) and (index == len(text_section_data) -1 ): # no need More news section
+                                if len(text_section_data) > 1 and ('umb://document' in text_section) and (idx == len(text_section_data) -1 ): # no need More news section
                                     pass
                                 else: 
                                     # replace all /content/ to /news/
                                     text_section = text_section.replace('/content/', '/news/')
+                                    news_content += '<!-- wp:paragraph -->' + text_section + '<!-- /wp:paragraph -->'
 
-                                    # get h2 tag in the content
-                                    h2_text = ''
-                                    h2_soup = BeautifulSoup(text_section, 'html.parser')
-                                    h2_obj = h2_soup.find('h2')
-
-                                    if h2_obj != None:
-                                        h2_text = h2_obj.text
-                                    
-                                    # remove h2 tag from the text section
-                                    if h2_text != '':
-                                        first_h2_tag = h2_soup.find('h2')
-                                        if first_h2_tag:
-                                            first_h2_tag.extract()
-
-                                        text_section = str(h2_soup)
-                                        
-                                    # Checking the text secion is empty or not
-
-                                    spacer_flag = True
-                                    if text_section == '<div class="textSection">\n\n</div>' or text_section == '<div class="textSection">\n\n<p>\xa0</p>\n</div>':
-                                        spacer_flag = False
-
-                                    # josn data for text section.
-                                    wp_text_section_advert = {
-                                        "name":"wak/news-copy-image-advert",
-                                        "data":{
-                                            "wak_block_visibility":"all",
-                                            "title": h2_text,
-                                            "_title": "field_652d542d71c0f",
-                                            "copy": text_section,
-                                            "_copy":'field_652d547571c11',
-                                            "advert":"0"
-                                        },
-                                        "mode":"edit"
-                                    }
-                                    news_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_text_section_advert) + ' /-->'
-                                    if spacer_flag:
-                                        news_content +=  wp_spaceer_content
-                                
-                                if index < len(content_images):
+                                    # post the heading data
+                                if idx < len(floating_header_data):
+                                    news_content += '<!-- wp:heading {"textAlign":"left" "level":3} -->' + floating_header_data[idx] + '<!-- /wp:heading -->'
+                                   
+                               
+                                # post the content image
+                                if idx < len(content_images):
                                     # upload content image file to media on WP
-                                    new_content_img_id = post_file(os.path.join(content_image_directory, content_images[index]))
+                                    new_content_img_id = post_file(os.path.join(content_image_directory, content_images[idx]))
 
                                     # json data for news image
-                                    wp_image_advert = {
-                                        "name":"wak/news-copy-image-advert",
+                                    wp_article_image = {
+                                        "name":"wak/article-image",
                                         "data":{
-                                            "wak_block_visibility":"all",
-                                            "title":"",
-                                            "introduction_copy":"",
-                                            "copy":"",
-                                            "image":new_content_img_id,
-                                            "_image":"field_652d549971c12",
-                                            "caption": content_captions[index],
-                                            "_caption":"field_652ea0fac8e2a",
-                                            "advert":"0",
+                                                "wak_block_visibility":"all",
+                                                "image": new_content_img_id,
+                                                "_image":"field_650d5b29b76b1",
+                                                "citation": content_captions[idx],
+                                                "-citation":"field_650d5b04dcdcf",
+                                                "advert":"0",
                                             },
                                         "mode":"edit"
                                     } 
 
-                                    news_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_image_advert) + ' /-->' + wp_spaceer_content
+                                    news_content += '<!-- wp:wak/article-image ' + json.dumps(wp_article_image) + ' /-->' 
+                                   
                             
                             # put the youtube iframes into the content
-                            if len(youtube_iframes):
-                                #json data for iframes section
+                            if len(youtube_iframes):                                
                                 for iframe in youtube_iframes:
-                                    wp_iframe_section_advert = {
-                                            "name":"wak/news-copy-image-advert",
-                                            "data":{
-                                                "wak_block_visibility":"all",
-                                                "title":'Watch the video below',
-                                                "_title": 'field_652d542d71c0f',
-                                                "copy": iframe,
-                                                "_copy":'field_652d547571c11',
-                                                "advert":"0"
-                                            },
-                                            "mode":"edit"
-                                        }
-                                    news_content += '<!-- wp:wak/news-copy-image-advert ' + json.dumps(wp_iframe_section_advert) + ' /-->' + wp_spaceer_content
+                                    news_content += '<!-- wp:wak/paragraph -->' + iframe + '<!-- /wp:paragraph -->'
                             
-                            # post the author section
-                            if author != "":
-                                wp_author_advert = {
-                                    "name": "wak/news-author-footer",
-                                    "data":{
-                                        "wak_block_visibility":"all",
-                                        "author_name": author,
-                                        "_author_name":"field_652eae9b6169c"
-                                    },
-                                    "mode":"edit"
-                                }
-                                news_content += '<!-- wp:wak/news-author-footer ' + json.dumps(wp_author_advert) + ' /-->' + wp_spaceer_content
-
-                            #adding more news section on the block
-                            wp_more_news = {
-                                "name": "wak/more-news",
+                            # put the author footer
+                            
+                            wp_author_advert = {
+                                "name": "wak/news-author-footer",
                                 "data":{
                                     "wak_block_visibility":"all",
-                                    "title": "Explore more",
-                                    "_title": "field_652d542d71c0f",
-                                }
+                                    "author_name": author,
+                                    "_author_name":"field_652eae9b6169c"
+                                },
+                                "mode":"edit"
                             }
-                            news_content += '<!-- wp:wak/more-news ' + json.dumps(wp_more_news) + ' /-->' + wp_spaceer_content
-                            
-                            # get post title from original title url
-                            post_title = url.split('/content/')[1]
-                            post_title = post_title.replace('-', ' ')
-                            
+                            news_content += '<!-- wp:wak/news-author-footer ' + json.dumps(wp_author_advert) + ' /-->'
+
+
+                            # get slug from original title url
+                            slug = url.split('/content/')[1]
+                            slug = slug.replace('-', ' ')
+                            date = convert_date_style(date)
                             # Post the news with all scrapped content
-                            post_news(wp_post_url, post_title, news_content, 'publish', new_hero_image_id, meta_description_content)
+                            post_news(wp_post_url, slug, title, news_content, author, author_id, date, 'publish', new_hero_image_id, standfirst)
                             
                         except Exception as e:
                             print(f"   Error while posting the contents on WP: {e}")
@@ -570,7 +573,7 @@ def process_inspiration():
 
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')     
-                if url:
+                if url and index == 5304:
                     print(f"# Start Scraping ({index}/{total_urls}): {url}")
                     # get inspiration category list from CSV
                     inspiration_data = []
@@ -582,46 +585,9 @@ def process_inspiration():
 
                     # get destination array from CSV         
                     destination_id_list = []
-       
                     countries = row.get('Countries')
                     print(f"  - countries: {countries}")
-                    if countries:
-                        countries = countries.split(';')
-                        for country in countries:
-                            slug_country_name = country.lower().replace(' ', '-')
-
-                            # Burma' s slug name is different
-                            if country == 'Burma/Myanmar':
-                                slug_country_name = 'myanmar-burma'
-                            
-                            # Svalbard (Spitsbergen)'s slug name
-                            if country == 'Svalbard (Spitsbergen)':
-                                slug_country_name = 'svalbard'
-
-                            if country == 'The Arctic':
-                                slug_country_name = 'arctic'
-                            
-                            if country == 'Czechia':
-                                slug_country_name = 'czech-republic'
-
-                            destination_id = 0
-                            response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
-                            if response.status_code == 200:
-                                response = response.json()
-                                if response:
-                                    destination_id = response[0].get('id')
-                                    destination_id_list.append(destination_id)
-                                else:
-                                    slug_country_name += "-2"
-                                    response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
-                                    if response.status_code == 200:
-                                        response = response.json()
-                                        if response:
-                                            destination_id = response[0].get('id')
-                                            destination_id_list.append(destination_id)
-                            if destination_id == 0:
-                                error_log.append(f'  - No country id for {index} - {country}')
-                    
+                    destination_id_list = get_country_id_list(index, countries)
                     print(f'  - destination id list {destination_id_list}')
 
                     try:
@@ -660,33 +626,9 @@ def process_inspiration():
 
                         # Find the author id from the WP via api
                         author_id = 23   # default author is team wanderlust
-                        page = 1
                         print(f'  - author name is {author}')
-                        non_author_name_list = ['Wander Woman', 'Freewheeling','Charity and Volunteer', 'Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
-                        if author in non_author_name_list or author == '':
-                            pass
-                        else:
-                            while True:
-                                response = requests.get(wp_users_url, headers=header, params={'per_page': 100, 'page': page})
-                                print(f'  - finding author id : {page}page filter done')
-                                if response.status_code == 200:
-                                    users = response.json()
-                                    if len(users) == 0:
-                                        print(' Not found the user')
-                                        break
-
-                                    author_list = [user for user in users if user.get('name') == author ]
-
-                                    if author_list:
-                                        author_id = author_list[0].get('id')
-                                        break
-                                    page +=1
-                                else:
-                                    print(f"  - unable to fetch user data {response.status_code}")
-                                    author_id = 23
-                            print(f'  - author id is {author_id}')
-                            if author_id == 23:
-                                error_log.append(f'  - No author id for index {index}th URL {url}, author: {author}')
+                        author_id = get_author_id_list(index, author)
+                     
                         # Find the header image in @media query with max-width: 2000px
                         header_images = []
 
@@ -986,46 +928,9 @@ def process_promoted_articles():
 
                     # get destination array from CSV         
                     destination_id_list = []
-       
                     countries = row.get('Countries')
                     print(f"  - countries: {countries}")
-                    if countries:
-                        countries = countries.split(';')
-                        for country in countries:
-                            slug_country_name = country.lower().replace(' ', '-')
-
-                            # Burma' s slug name is different
-                            if country == 'Burma/Myanmar':
-                                slug_country_name = 'myanmar-burma'
-                            
-                            # Svalbard (Spitsbergen)'s slug name
-                            if country == 'Svalbard (Spitsbergen)':
-                                slug_country_name = 'svalbard'
-
-                            if country == 'The Arctic':
-                                slug_country_name = 'arctic'
-
-                            if country == 'Czechia':
-                                slug_country_name = 'czech-republic'
-                            
-                            destination_id = 0
-                            response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
-                            if response.status_code == 200:
-                                response = response.json()
-                                if response:
-                                    destination_id = response[0].get('id')
-                                    destination_id_list.append(destination_id)
-                                else:
-                                    slug_country_name += "-2"
-                                    response = requests.get('https://wanderlusttstg.wpengine.com//wp-json/wp/v2/destination?slug=' + slug_country_name)
-                                    if response.status_code == 200:
-                                        response = response.json()
-                                        if response:
-                                            destination_id = response[0].get('id')
-                                            destination_id_list.append(destination_id)
-                            if destination_id == 0:
-                                error_log.append(f'  - No country id for {index} - {country}')
-                    
+                    destination_id_list = get_country_id_list(index, countries)
                     print(f'  - destination id list {destination_id_list}')
 
                     try:
@@ -1058,33 +963,9 @@ def process_promoted_articles():
 
                         # Find the author id from the WP via api
                         author_id = 23   # default author is team wanderlust
-                        page = 1
                         print(f'  - author name is {author}')
-                        non_author_name_list = ['Wander Woman', 'Freewheeling','Charity and Volunteer', 'Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
-                        if author in non_author_name_list or author == '':
-                            pass
-                        else:
-                            while True:
-                                response = requests.get(wp_users_url, headers=header, params={'per_page': 100, 'page': page})
-                                print(f'  - finding author id : {page}page filter done')
-                                if response.status_code == 200:
-                                    users = response.json()
-                                    if len(users) == 0:
-                                        print(' Not found the user')
-                                        break
+                        author_id = get_author_id_list(index, author)
 
-                                    author_list = [user for user in users if user.get('name') == author ]
-
-                                    if author_list:
-                                        author_id = author_list[0].get('id')
-                                        break
-                                    page +=1
-                                else:
-                                    print(f"  - unable to fetch user data {response.status_code}")
-                                    author_id = 23
-                            print(f'  - author id is {author_id}')
-                            if author_id == 23:
-                                error_log.append(f'  - No author id for index {index}th URL {url}, author: {author}')
                         # Find the header image in @media query with max-width: 2000px
                         header_images = []
 
@@ -1358,35 +1239,11 @@ def update_promoted_articles():
                             author, date = '', byline_element.text.strip()
 
                         # Find the author id from the WP via api
+                         # Find the author id from the WP via api
                         author_id = 23   # default author is team wanderlust
-                        page = 1
                         print(f'  - author name is {author}')
-                        non_author_name_list = ['Wander Woman', 'Freewheeling','Charity and Volunteer', 'Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
-                        if author in non_author_name_list or author == '':
-                            pass
-                        else:
-                            while True:
-                                response = requests.get(wp_users_url, headers=header, params={'per_page': 100, 'page': page})
-                                print(f'  - finding author id : {page}page filter done')
-                                if response.status_code == 200:
-                                    users = response.json()
-                                    if len(users) == 0:
-                                        print(' Not found the user')
-                                        break
+                        author_id = get_author_id_list(index, author)
 
-                                    author_list = [user for user in users if user.get('name') == author ]
-
-                                    if author_list:
-                                        author_id = author_list[0].get('id')
-                                        break
-                                    page +=1
-                                else:
-                                    print(f"  - unable to fetch user data {response.status_code}")
-                                    author_id = 23
-                        print(f'  - author id is {author_id}')
-                        if author_id == 23:
-                            error_log.append(f'  - No author id for index {index}th URL {url}, author: {author}')
-                     
                         try:         
                             # get post title from original title url
                             if '/content/' in url :
@@ -1442,9 +1299,10 @@ def update_promoted_articles():
             # print(extracted_data)
     except FileNotFoundError:
         print(f"CSV file '{promoted_csv_file}' not found.")
+
 def main():
-    # process_post_news()
-    process_inspiration()
+    process_post_news()
+    # process_inspiration()
     # process_promoted_articles()
     # update_promoted_articles()
     if len(error_log):
