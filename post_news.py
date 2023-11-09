@@ -1316,10 +1316,137 @@ def process_promoted_articles():
     except FileNotFoundError:
         print(f"CSV file '{promoted_csv_file}' not found.")
 
+#Function for updating the promoted articles with new authors
+def update_promoted_articles():
+    try:
+        with open(promoted_csv_file, 'r') as file:
+            csv_reader = csv.DictReader(file)
+            total_urls = sum(1 for row in csv_reader)  # Count the total number of URLs
+            file.seek(0)  # Reset the file position to the beginning
+            next(csv_reader)  # Skip the header row
+
+            for index, row in enumerate(csv_reader, start=1):
+                url = row.get('URL')    
+                update_index_list = [631,635,637,638,643,646,673,674,675,676]
+                if url and index in update_index_list:
+                    print(f"# Start Scraping ({index}/{total_urls}): {url}")
+
+                    try:
+                        # Validate the URL by sending a HEAD request
+                        response = requests.head(url, timeout=10)
+                        if response.status_code != 200:
+                            print(f"Skipping invalid URL ({index}/{total_urls}): {url}")
+                            continue
+
+                        # Send a GET request to fetch the web page content
+                        response = requests.get(url, timeout=10)
+                        response.raise_for_status()
+
+                        # Parse the HTML content using BeautifulSoup
+                        soup = BeautifulSoup(response.content, 'html.parser')
+
+                        # Extract data from the HTML structure
+                        byline_element = soup.find('h4', class_='byline')
+                        title = soup.find('h1').text.strip()
+                        standfirst = soup.find('p', class_='standfirst').text.strip()
+
+                        # Split the byline by '|' and extract Author and Date
+                        byline_parts = byline_element.text.strip().split('|')
+                        if len(byline_parts) == 2:
+                            author, date = byline_parts[0].strip(), byline_parts[1].strip()
+                        else:
+                            author, date = '', byline_element.text.strip()
+
+                        # Find the author id from the WP via api
+                        author_id = 23   # default author is team wanderlust
+                        page = 1
+                        print(f'  - author name is {author}')
+                        non_author_name_list = ['Wander Woman', 'Freewheeling','Charity and Volunteer', 'Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
+                        if author in non_author_name_list or author == '':
+                            pass
+                        else:
+                            while True:
+                                response = requests.get(wp_users_url, headers=header, params={'per_page': 100, 'page': page})
+                                print(f'  - finding author id : {page}page filter done')
+                                if response.status_code == 200:
+                                    users = response.json()
+                                    if len(users) == 0:
+                                        print(' Not found the user')
+                                        break
+
+                                    author_list = [user for user in users if user.get('name') == author ]
+
+                                    if author_list:
+                                        author_id = author_list[0].get('id')
+                                        break
+                                    page +=1
+                                else:
+                                    print(f"  - unable to fetch user data {response.status_code}")
+                                    author_id = 23
+                        print(f'  - author id is {author_id}')
+                        if author_id == 23:
+                            error_log.append(f'  - No author id for index {index}th URL {url}, author: {author}')
+                     
+                        try:         
+                            # get post title from original title url
+                            if '/content/' in url :
+                                post_title = url.split('/content/')[1]
+                            else:
+                                post_title = url.split('/')[-1]
+                                post_title = post_title.split('.')[0]
+
+                            # find the id of the promoted articles
+                            response = requests.get(wp_inspiration_url, params={'slug': post_title})
+
+                            # Check if the request was successful (status code 200)
+                            if response.status_code == 200:
+                                # Parse the response as JSON
+                                posts = response.json()
+
+                                # Check if any posts were found
+                                if posts:
+                                    # Get the ID of the first post (assuming there's only one with the same title)
+                                    post_id = posts[0]['id']
+                                    post_title = post_title.replace('-', ' ')
+                                    
+                                    post_data = {
+                                        'author': author_id,
+                                    }
+                                
+                                    try:
+                                        
+                                        response = requests.post(f'{wp_inspiration_url}/{post_id}', headers=header, json=post_data)
+                                        if response.status_code == 200:
+                                            print(f'  - Article updated "{post_id}": {title} , author_id: {author_id} successfully!')
+                                        else:
+                                            print(f'Error updating custom post. Status code: {response.status_code}, {response.text}')
+                                    except Exception as e:
+                                        print (f" Error while updating the article! '{title}'")
+                                        response = ""
+                                        
+                                else:
+                                    print(f" - No posts found with the title {index}-'{post_title}'")
+                            else:
+                                print(f" - Error: Unable to fetch data. Status code {response.status_code}")
+                            
+      
+                        except Exception as e:
+                            print(f"   Error while posting the contents on WP: {e}")
+                            error_log.append(f' Error while posting the contents on WP: {e} {index}th url {url}')
+                        
+                    except Exception as e:
+                        print(f"  Error analyzing {url} ({index}/{total_urls}): {e}")
+                        error_log.append(f' - Error analyzing {index}th url {url}')
+            
+                
+            # print(extracted_data)
+    except FileNotFoundError:
+        print(f"CSV file '{promoted_csv_file}' not found.")
 def main():
     # process_post_news()
-    # process_inspiration()
-    process_promoted_articles()
+    process_inspiration()
+    # process_promoted_articles()
+    # update_promoted_articles()
     if len(error_log):
         print(error_log)
     else:
