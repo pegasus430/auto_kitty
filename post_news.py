@@ -392,13 +392,18 @@ def process_post_news():
                             header_image_names.append(image_name)
 
                             # Download the image
-                            image_url = image_url.split('?')[0]
-                            image_response = requests.get(image_url, timeout=20)
+                            original_image_url = image_url.split('?')[0]
+                            image_response = requests.get(original_image_url, timeout=20)
                             if image_response.status_code == 200:
                                 with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
                                     image_file.write(image_response.content)
-                            else:
-                                header_image_names.pop()  # Remove the image name if download fails
+                            else: # if failed with original image url, try again with long and anchor image url
+                                image_response = requests.get(image_url, timeout=10)
+                                if image_response.status_code == 200:
+                                    with open(os.path.join(header_image_directory, image_name), 'wb') as image_file:
+                                        image_file.write(image_response.content)
+                                else:    
+                                    header_image_names.pop()  # Remove the image name if download fails    
 
                         # Extract all .media elements while maintaining their HTML structure
                         media_sections = soup.select('.media')
@@ -473,8 +478,10 @@ def process_post_news():
                         print(f"  - Scraped ({index}/{total_urls}): {url}")
                         
                         try:
-                            # upload hero image file to media on WP as featured image.                        
-                            new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
+                            # upload hero image file to media on WP as featured image.
+                            new_hero_image_id = 0
+                            if header_image_names:                        
+                                new_hero_image_id = post_file(os.path.join(header_image_directory, header_image_names[0]))
 
                             # Iteration of text secion and image block
                             for idx, text_section in enumerate(text_section_data):
@@ -541,9 +548,11 @@ def process_post_news():
                             
                         except Exception as e:
                             print(f"   Error while posting the contents on WP: {e}")
+                            error_log.append(f' Error while posting the contents on WP: {e} {index}th url {url}')
 
                     except Exception as e:
                         print(f"  Error analyzing {url} ({index}/{total_urls}): {e}")
+                        error_log.append(f' Error analyzing {url} ({index}/{total_urls}): {e}')
 
     except FileNotFoundError:
         print(f"CSV file '{news_csv_file}' not found.")
