@@ -24,9 +24,22 @@ ins_csv_file = 'articles_inspiration_urls.csv'
 promoted_csv_file = 'promoted_articles.csv'
 
 # Initialize a list to store extracted data
-extracted_data = []
 error_log = []
 update_flag = False
+
+# inspiration category list 
+inspiration_list = {
+    "Outdoors & Walking": 18,
+    "Culture & Heritage": 14,
+    "Rail": 16,
+    "Food & Drink": 21,
+    "Sustainable Travel": 15,
+    "Solo Travel": 17,
+    "Sleeps": 19,
+    "Nature & Wildlife": 20,
+    "Trips": 22,
+    "Promoted Journeys": 23
+}
 
 # Initialize the target wordpress URL and authentication information.
 wp_url = "https://wanderlusttstg.wpengine.com//wp-json/wp/v2"
@@ -66,7 +79,7 @@ def extract_image_name(image_url):
     return clean_image_name
 
 # Function to post the article on Wordpress
-def post_news(url, slug, title, article_body, author, author_id, date, post_status="draft", featured_media_id=0, standfirst=""):
+def post_news(url, slug, title, article_body, date, post_status, featured_media_id=0, standfirst=""):
     
     post_data = {
         "slug": slug,
@@ -79,16 +92,17 @@ def post_news(url, slug, title, article_body, author, author_id, date, post_stat
         "excerpt": standfirst,   
         "date": date,
     }
+
     try:
         response = requests.post(url, headers=header, json=post_data)
         if response.status_code == 201:
-            print(f'  - Article posted "{title}" successfully!')
+            print(f'  - News has been posted "{title}" successfully!')
         else:
-            print(f'Error creating custom post. Status code: {response.status_code}')
-            error_log.append(f'Error creating custom post. {slug} Status code: {response.status_code}')
+            print(f'Error creating custom News. Status code: {response.status_code}')
+            error_log.append(f'Error creating custom News. {slug} Status code: {response.status_code}')
     except:
-        print (f"Error while posting the article! '{title}'")
-        error_log.append(f"Error while posting the article! '{title}'")
+        print (f"Error while posting the News! '{title}'")
+        error_log.append(f"Error while posting the News! '{title}'")
         response = ""
     
 # Function to post the inspiration articles on Wordpress
@@ -132,13 +146,13 @@ def post_inspiration(url, slug, article_title, author_id, author, date, article_
         
         response = requests.post(url, headers=header, json=post_data)
         if response.status_code == 201:
-            print(f'  - Article posted "{article_title}" successfully!')
+            print(f'  - Inspiration has been posted "{article_title}" successfully!')
         else:
-            print(f' - Error creating custom post. Status code: {response.status_code}, {response.text}')
-            error_log.append(f' - Error creating custom post. slug: {slug} Status code: {response.status_code}, {response.text}')
+            print(f' - Error creating custom Inspiration. Status code: {response.status_code}, {response.text}')
+            error_log.append(f' - Error creating custom Inspiration. slug: {slug} Status code: {response.status_code}, {response.text}')
     except Exception as e:
-        print (f" - Error while posting the article! '{article_title}'")
-        error_log.append(f' - Error while posting the article!  slug: {slug}')
+        print (f" - Error while posting the Inspiration! '{article_title}'")
+        error_log.append(f' - Error while posting the Inspiration!  slug: {slug}')
         response = ""
 
 # Function to post the promoted articles on Wordpress
@@ -184,13 +198,13 @@ def post_promoted_article(url, slug, article_title, author_id, author, date, art
         
         response = requests.post(url, headers=header, json=post_data)
         if response.status_code == 201:
-            print(f'  - Article posted "{article_title}" successfully!')
+            print(f'  - Promoted articles has been posted "{article_title}" successfully!')
         else:
-            print(f' - Error creating custom post. Status code: {response.status_code}, {response.text}')
+            print(f' - Error creating custom Promoted articles. Status code: {response.status_code}, {response.text}')
             error_log.append(f' - Error creating custom post. slug: {slug} Status code: {response.status_code}, {response.text}')
     except Exception as e:
-        print (f" - Error while posting the article! '{article_title}'")
-        error_log.append(f' - Error while posting the article!  slug: {slug}')
+        print (f" - Error while posting the Promoted articles! '{article_title}'")
+        error_log.append(f' - Error while posting the Promoted articles!  slug: {slug}')
         response = ""
 
 #Function to update the already posted inspiration articles 
@@ -221,14 +235,13 @@ def update_post_inspiration(post_id, slug, article_title, standfirst, author_id,
         }
     
     try:
-        
         response = requests.post(f'{wp_inspiration_url}/{post_id}', headers=header, json=post_data)
         if response.status_code == 200:
-            print(f'  - Article updated "{post_id}" successfully!')
+            print(f'  - Inspiration has been updated "{post_id}" successfully!')
         else:
             print(f'Error updating custom post. Status code: {response.status_code}, {response.text}')
     except Exception as e:
-        print (f" Error while updating the article! '{article_title}'")
+        print (f" Error while updating the Inspiration! '{article_title}'")
         response = ""
 
 # Function to post the file on Wordpress Media library
@@ -245,11 +258,9 @@ def post_file(file_path):
         return 0
     return image_id
 
-# Function to get the country list from the WP
-def get_country_id_list(index, countries):
-    # get destination array from CSV         
+# Function to get the country list from the WP destinations
+def get_country_id_list(index, countries):        
     destination_id_list = []
-    
     if countries:
         countries = countries.split(';')
         for country in countries:
@@ -263,9 +274,11 @@ def get_country_id_list(index, countries):
             if country == 'Svalbard (Spitsbergen)':
                 slug_country_name = 'svalbard'
 
+            # Arctic's slug name
             if country == 'The Arctic':
                 slug_country_name = 'arctic'
             
+            #Czechia's slug name
             if country == 'Czechia':
                 slug_country_name = 'czech-republic'
 
@@ -288,11 +301,15 @@ def get_country_id_list(index, countries):
                 error_log.append(f'  - No country id for {index} - {country}')
     
     return destination_id_list
-    
+
+# Function to get the author id from the WP usres.    
 def get_author_id_list(index, author):
-    author_id = 23
-    page = 1                        
+    # default team wanderlust id
+    author_id = 23 
+    page = 1       
+    # some non authors list                
     non_author_name_list = ['Wander Woman', 'Freewheeling','Charity and Volunteer', 'Travelling local', 'Insider Secrets', 'Weird@Wanderlust', 'Team Wanderlust', 'Wanderlust Journeys', 'Blog of the week', 'Family Travel', 'Food & Drink']
+    
     if author in non_author_name_list or author == '':
         pass
     else:
@@ -358,20 +375,12 @@ def process_post_news():
                         # Find the meta tag with name="description"
                         meta_description = soup.find('meta', attrs={'name': 'description'})
 
-                        # Get the content attribute
-                        meta_description_content = meta_description['content']
-
                         # Split the byline by '|' and extract Author and Date
                         byline_parts = byline_element.text.strip().split('|')
                         if len(byline_parts) == 2:
                             author, date = byline_parts[0].strip(), byline_parts[1].strip()
                         else:
                             author, date = '', byline_element.text.strip()
-
-                        # Find the author id from the WP via api
-                        author_id = 23   # default author is team wanderlust
-                        print(f'  - author name is {author}')
-                        author_id = get_author_id_list(index, author)
 
                         # Find the header image in @media query with max-width: 2000px
                         header_images = []
@@ -460,21 +469,6 @@ def process_post_news():
                         for media in media_data:
                             content_captions.append(media['Image Caption'])
 
-                        # Append the extracted data to the list
-                        extracted_data.append({
-                            'URL': url,
-                            'Author': author,
-                            'Date': date,
-                            'Title': title,
-                            'Standfirst': standfirst,
-                            'Meta': meta_description_content,
-                            'Header Image': ', '.join(header_image_names),
-                            'Content Images': ', '.join([media['Image Name'] for media in media_data]),
-                            'Content Captions': ', '.join([media['Image Caption'] for media in media_data]),
-                            'Text Sections': '\n\n'.join(text_section_data),
-                            'YouTube Iframes': '\n\n'.join(youtube_iframes),
-                        })
-
                         print(f"  - Scraped ({index}/{total_urls}): {url}")
                         
                         try:
@@ -493,7 +487,7 @@ def process_post_news():
                                     text_section = text_section.replace('/content/', '/news/')
                                     news_content += '<!-- wp:paragraph -->' + text_section + '<!-- /wp:paragraph -->'
 
-                                    # post the heading data
+                                # post the heading data
                                 if idx < len(floating_header_data):
                                     news_content += '<!-- wp:heading {"textAlign":"left" "level":3} -->' + floating_header_data[idx] + '<!-- /wp:heading -->'
                                    
@@ -526,7 +520,6 @@ def process_post_news():
                                     news_content += '<!-- wp:wak/paragraph -->' + iframe + '<!-- /wp:paragraph -->'
                             
                             # put the author footer
-                            
                             wp_author_advert = {
                                 "name": "wak/news-author-footer",
                                 "data":{
@@ -544,7 +537,7 @@ def process_post_news():
                             slug = slug.replace('-', ' ')
                             date = convert_date_style(date)
                             # Post the news with all scrapped content
-                            post_news(wp_post_url, slug, title, news_content, author, author_id, date, 'publish', new_hero_image_id, standfirst)
+                            post_news(wp_post_url, slug, title, news_content, date, 'publish', new_hero_image_id, standfirst)
                             
                         except Exception as e:
                             print(f"   Error while posting the contents on WP: {e}")
@@ -560,19 +553,6 @@ def process_post_news():
 # Function for posting the inspiration while scraping the inspiration content
 def process_inspiration():
     # Read URLs from the CSV file and validate them
-    inspiration_list = {
-        "Outdoors & Walking": 18,
-        "Culture & Heritage": 14,
-        "Rail": 16,
-        "Food & Drink": 21,
-        "Sustainable Travel": 15,
-        "Solo Travel": 17,
-        "Sleeps": 19,
-        "Nature & Wildlife": 20,
-        "Trips": 22,
-        "Promoted Journeys": 23
-    }
-
     try:
         with open(ins_csv_file, 'r') as file:
             csv_reader = csv.DictReader(file)
@@ -582,8 +562,9 @@ def process_inspiration():
 
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')     
-                if url and index == 5304:
+                if url:
                     print(f"# Start Scraping ({index}/{total_urls}): {url}")
+
                     # get inspiration category list from CSV
                     inspiration_data = []
                     inspiration_category = row.get('Content')
@@ -601,7 +582,6 @@ def process_inspiration():
 
                     try:
                         inspiration_content = ''
-                        
                         # Validate the URL by sending a HEAD request
                         response = requests.head(url, timeout=10)
                         if response.status_code != 200:
@@ -619,12 +599,6 @@ def process_inspiration():
                         byline_element = soup.find('h4', class_='byline')
                         title = soup.find('h1').text.strip()
                         standfirst = soup.find('p', class_='standfirst').text.strip()
-
-                        # Find the meta tag with name="description"
-                        meta_description = soup.find('meta', attrs={'name': 'description'})
-
-                        # Get the content attribute
-                        meta_description_content = meta_description['content']
 
                         # Split the byline by '|' and extract Author and Date
                         byline_parts = byline_element.text.strip().split('|')
@@ -709,8 +683,8 @@ def process_inspiration():
 
                         else:
                             """ 
-                            if the page is standard structhre
-                            it means the page have several textsection as news post
+                                if the page is standard structhre
+                                it means the page have several textsection as news post
                             """
                             # Extract all .media elements while maintaining their HTML structure                           
                             media_sections = soup.select('.media')
@@ -749,7 +723,6 @@ def process_inspiration():
                                 text_section_html = str(text_section)
                                 text_section_data.append(text_section_html)
 
-                        ##############################################
                         # Make content images array
                         content_images = []
                         for media in media_data:
@@ -767,7 +740,6 @@ def process_inspiration():
                             # Check if the iframe is a YouTube embed
                             if 'youtube.com' in iframe['src']:
                                 youtube_iframes.append(str(iframe))
-                        #################################################
                             
                         print(f"  - Scraped ({index}/{total_urls}): {url}")
                         
@@ -839,13 +811,11 @@ def process_inspiration():
 
                                         inspiration_content += '<!-- wp:wak/article-image ' + json.dumps(wp_image_advert) + ' /-->' 
                                     
-                            
                             # put the youtube iframes into the content
                             if len(youtube_iframes):
                                 for iframe in youtube_iframes:
                                     inspiration_content += '<!-- wp:wak/paragraph -->' + iframe + '<!-- /wp:paragraph -->'
                             
-                           
                             # get post title from original title url
                             if '/content/' in url :
                                 post_title = url.split('/content/')[1]
@@ -862,7 +832,6 @@ def process_inspiration():
                                 post_inspiration(wp_inspiration_url, post_title, title, author_id,  author, date, inspiration_content, 'publish', new_hero_image_id, standfirst, destination_id_list, inspiration_data)
                             else:
                                 # update the post with new data
-                                # remove the already posted posts on WP.
                                 # Make a request to find the post with the specified title
                                 response = requests.get(wp_inspiration_url, params={'slug': post_title})
 
@@ -883,37 +852,19 @@ def process_inspiration():
                                 else:
                                     print(f" - Error: Unable to fetch data. Status code {response.status_code}")
 
-                                
                         except Exception as e:
                             print(f"   Error while posting the contents on WP: {e}")
                             error_log.append(f' Error while posting the contents on WP: {e} {index}th url {url}')
-                        
-
 
                     except Exception as e:
                         print(f"  Error analyzing {url} ({index}/{total_urls}): {e}")
                         error_log.append(f' - Error analyzing {e} {index}th url {url}')
             
-                
-            # print(extracted_data)
     except FileNotFoundError:
         print(f"CSV file '{ins_csv_file}' not found.")
 
 # Function for posting the promoted articles
 def process_promoted_articles():
-    inspiration_list = {
-        "Outdoors & Walking": 18,
-        "Culture & Heritage": 14,
-        "Rail": 16,
-        "Food & Drink": 21,
-        "Sustainable Travel": 15,
-        "Solo Travel": 17,
-        "Sleeps": 19,
-        "Nature & Wildlife": 20,
-        "Trips": 22,
-        "Promoted Journeys": 23
-    }
-
     try:
         with open(promoted_csv_file, 'r') as file:
             csv_reader = csv.DictReader(file)
@@ -1046,8 +997,8 @@ def process_promoted_articles():
 
                         else:
                             """ 
-                            if the page is standard structhre
-                            it means the page have several textsection as news post
+                                if the page is standard structhre
+                                it means the page have several textsection as news post
                             """
                             # Extract all .media elements while maintaining their HTML structure                           
                             media_sections = soup.select('.media')
@@ -1200,13 +1151,11 @@ def process_promoted_articles():
                     except Exception as e:
                         print(f"  Error analyzing {url} ({index}/{total_urls}): {e}")
                         error_log.append(f' - Error analyzing {e} {index}th url {url}')
-            
-                
-            # print(extracted_data)
+
     except FileNotFoundError:
         print(f"CSV file '{promoted_csv_file}' not found.")
 
-#Function for updating the promoted articles with new authors
+# Function for updating the promoted articles with new authors
 def update_promoted_articles():
     try:
         with open(promoted_csv_file, 'r') as file:
@@ -1217,7 +1166,7 @@ def update_promoted_articles():
 
             for index, row in enumerate(csv_reader, start=1):
                 url = row.get('URL')    
-                update_index_list = [631,635,637,638,643,646,673,674,675,676]
+                update_index_list = []
                 if url and index in update_index_list:
                     print(f"# Start Scraping ({index}/{total_urls}): {url}")
 
@@ -1247,8 +1196,7 @@ def update_promoted_articles():
                         else:
                             author, date = '', byline_element.text.strip()
 
-                        # Find the author id from the WP via api
-                         # Find the author id from the WP via api
+                        # Find the author id from the WP via api                         
                         author_id = 23   # default author is team wanderlust
                         print(f'  - author name is {author}')
                         author_id = get_author_id_list(index, author)
@@ -1304,14 +1252,12 @@ def update_promoted_articles():
                         print(f"  Error analyzing {url} ({index}/{total_urls}): {e}")
                         error_log.append(f' - Error analyzing {index}th url {url}')
             
-                
-            # print(extracted_data)
     except FileNotFoundError:
         print(f"CSV file '{promoted_csv_file}' not found.")
 
 def main():
-    process_post_news()
-    # process_inspiration()
+    # process_post_news()
+    process_inspiration()
     # process_promoted_articles()
     # update_promoted_articles()
     if len(error_log):
