@@ -7,11 +7,16 @@ import re
 from bs4 import BeautifulSoup
 from datetime import datetime
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse, urlunparse, quote, urljoin
 
 # Define the directory to save downloaded images
 image_directory = 'content/images'
 header_image_directory = 'content/header_images'
 content_image_directory = 'content/content_images'
+
+# Create a quize folder for storing downloaded images
+base_quiz_image_folder = 'quiz_images'
+os.makedirs(base_quiz_image_folder, exist_ok=True)
 
 # Create the image directories if they don't exist
 os.makedirs(image_directory, exist_ok=True)
@@ -23,6 +28,7 @@ news_csv_file = 'news.csv'
 ins_csv_file = 'articles_inspiration_urls.csv'
 promoted_csv_file = 'promoted_articles.csv'
 users_csv_file = 'author_names.csv'
+quiz_csv_file = 'quiz.csv'
 
 # Initialize a list to store extracted data
 error_log = []
@@ -48,6 +54,8 @@ wp_post_url = wp_url + "/news"
 wp_inspiration_url = wp_url + "/posts"
 wp_media_url = wp_url + "/media"
 wp_users_url = wp_url + "/users"
+wp_quiz_url = wp_url + '/quiz'
+
 user_id = "mihailo"
 user_app_password = "bWOV MTvf MEB3 hWts DVKd zGpu"
 
@@ -1283,12 +1291,207 @@ def process_users():
     except FileNotFoundError:
         print(f"CSV file '{users_csv_file}' not found.")
 
+# Function for importing Quiz
+def process_quiz():
+    # Open the CSV file for reading URLs and writing data
+    with open(quiz_csv_file, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)        
+        csvfile.seek(0)     # Reset the file position to the beginning
+        # next(reader)        # Skip the header row
+        for index, row in enumerate(reader, start=1):
+            url = row['URL']            
+            if url and index == 35:
+                print(f"# Start Scraping ({index}): {url}")
+                # get inspiration category list from CSV
+                category_text = row['Content']
+                category_id_list = []
+                categories = category_text.split(';')
+                for category in categories:
+                    if category in inspiration_list:
+                        category_id_list.append(inspiration_list[category])
+                print('  - category ID list', category_id_list)
+
+                # get destination array from CSV         
+                destination_id_list = []
+                countries = row.get('Countries')
+                print(f"  - countries: {countries}")
+                destination_id_list = get_country_id_list(index, countries)
+                print(f'  - destination id list {destination_id_list}')
+                
+                # Get the slug name from the URL
+                url_parts = urlparse(url)
+                slug = quote(url_parts.path.strip('/')).replace('/', '_')
+                image_folder = os.path.join(base_quiz_image_folder, slug)
+                os.makedirs(image_folder, exist_ok=True)
+                
+                # Send an HTTP GET request to the URL
+                response = requests.get(url)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    
+                    # Find the triviaQuizQuestionBlock
+                    trivia_block = soup.find('div', class_='triviaQuizQuestionBlock')
+                    
+                    if trivia_block:
+                        # Find all quizItems within the triviaQuizQuestionBlock
+                        quiz_items = trivia_block.find_all('div', class_='quizItem')
+                        
+                        for quiz_item in quiz_items:
+                            # Initialize dictionaries to store data for each row
+                            data_row = {
+                                'URL': url,
+                                'Image': '',
+                                'Question': '',
+                                'Answers': '',  # Updated column name
+                                'Correct Answer': '',
+                                'Date': '',  # New column for date
+                                'Title': '',  # New column for title
+                                'Quiz Intro Text': '',  # New column for intro text
+                                'Featured Image': '',  # New column for featured image
+                                'Category': category_id_list,
+                                'Country': destination_id_list,
+                                'Author': '',
+                            }
+                            
+                            # Download images
+                            image = quiz_item.find('img')
+                            if image and 'src' in image.attrs:
+                                image_url = image['src']
+                                image_filename = os.path.basename(urlparse(image_url).path)
+                                image_path = os.path.join(image_folder, image_filename)
+                                data_row['Image'] = image_path
+                                image['src'] = image_path  # Update the src attribute
+                                
+                                # Download image
+                                response = requests.get(image_url)
+                                if response.status_code == 200:
+                                    with open(image_path, 'wb') as img_file:
+                                        img_file.write(response.content)
+                            
+                            # Get question text
+                            question = quiz_item.find('div', class_='questionTextBlock')
+                            if question:
+                                question_text = question.find('h3').text
+                                data_row['Question'] = question_text
+                            
+                            # Get answers and highlight correct answer
+                            answer_blocks = quiz_item.find_all('div', class_='answerBlock')
+                            answers = []
+                            correct_answer = ''
+                            for answer_block in answer_blocks:
+                                answer_text = answer_block.find('p').text
+                                answers.append(answer_text)
+                                if 'data-correct' in answer_block.attrs and answer_block['data-correct'] == 'true':
+                                    correct_answer = answer_text
+                            
+                            # Concatenate answers if multiple
+                            data_row['Answers'] = ', '.join(answers)  # Updated column name
+                            data_row['Correct Answer'] = correct_answer
+                            
+                            # Get additional information
+                            byline = soup.find('h4', class_='byline')
+                            # Split the byline by '|' and extract Author and Date
+                            byline_parts = byline.text.strip().split('|')
+                            if len(byline_parts) == 2:
+                                author, date = byline_parts[0].strip(), byline_parts[1].strip()
+                            else:
+                                author, date = '', byline.text.strip()
+                            
+                            # Find the author id from the WP via api
+                            author_id = 23   # default author is team wanderlust                            
+                            author_id = get_author_id_list(index, author)
+                            data_row['Author'] = author_id
+
+                            # convert the date as preferred format
+                            date = convert_date_style(date)
+                            data_row['Date'] =date
+
+                            title = soup.find('h1')
+                            if title:
+                                title_text = title.text
+                                title = title_text.split('Quiz:')[1]
+                                data_row['Title'] = title
+                            
+                            intro_text = soup.find('div', class_='textSection')
+                            if intro_text:
+                                intro_paragraphs = intro_text.find_all('p')
+                                intro_text_list = []
+                                for paragraph in intro_paragraphs:
+                                    if not paragraph.find('em'):
+                                        intro_text_list.append(paragraph.text)
+                                data_row['Quiz Intro Text'] = ' '.join(intro_text_list)
+                            
+                            # Get featured image
+                            featured_image = soup.find('picture', class_='w-100')
+                            if featured_image:
+                                # This is in case the header image is picture
+                                featured_image_source = featured_image.find('img')
+                                if featured_image_source and 'src' in featured_image_source.attrs:
+                                    featured_image_url = featured_image_source['src']
+                                    
+                                    # Combine the base URL with the featured_image_url
+                                    complete_featured_image_url = urljoin(url, featured_image_url)
+                                    
+                                    featured_image_filename = os.path.basename(urlparse(complete_featured_image_url).path)
+                                    featured_image_path = os.path.join(image_folder, featured_image_filename)
+                                    data_row['Featured Image'] = featured_image_path
+                                    featured_image_source['src'] = featured_image_path
+                                    
+                                    # Download featured image
+                                    response = requests.get(complete_featured_image_url)
+                                    if response.status_code == 200:
+                                        with open(featured_image_path, 'wb') as img_file:
+                                            img_file.write(response.content)
+                            else:
+                                # This is in case the header image is in backgroud image like News.
+                                # Find the header image in @media query with max-width: 2000px
+                                header_images = []
+
+                                # Check for @media queries
+                                media_queries = soup.find_all('style')
+                                for media_query in media_queries:
+                                    if '@media only screen and (max-width: 2000px)' in media_query.text:
+                                        media_query_images = extract_images_from_style(media_query.text)
+                                        if media_query_images:
+                                            header_images.append(media_query_images[0])  # Only add the first image
+                                            break  # Stop processing images after the first one is found
+
+                                # Download the header images to the header image directory
+                                
+                                for i, image_url in enumerate(header_images):
+                                    image_name = extract_image_name(image_url)
+                                    # header_image_names.append(image_name)
+                                    featured_image_path = os.path.join(image_folder, image_name)
+                                    data_row['Featured Image'] = featured_image_path
+
+                                    # Download the image
+                                    original_image_url = image_url.split('?')[0]
+                                    image_response = requests.get(original_image_url, timeout=20)
+                                    if image_response.status_code == 200:
+                                        with open(featured_image_path, 'wb') as image_file:
+                                            image_file.write(image_response.content)
+                                    else: # if failed with original image url, try again with long and anchor image url
+                                        image_response = requests.get(image_url, timeout=10)
+                                        if image_response.status_code == 200:
+                                            with open(featured_image_path, 'wb') as image_file:
+                                                image_file.write(image_response.content)
+                                        else:    
+                                            data_row['Featured Image'] = ''
+                            
+
+                        print(f"  - Data for URL '{url}' has been scraped") 
+                                               
+                else:
+                    print(f"  - Failed to fetch URL '{url}' (status code: {response.status_code})")
+                    error_log.append(f"Failed to fetch index {index} URL '{url}' (status code: {response.status_code})")
+
 def main():
     # process_post_news()
-    process_inspiration()
+    # process_inspiration()
     # process_promoted_articles()
     # update_promoted_articles()
     # process_users()
+    process_quiz()
     if len(error_log):
         print(error_log)
     else:
