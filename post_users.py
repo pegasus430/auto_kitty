@@ -1,9 +1,6 @@
 import requests
 import base64
-import json
-import os
 import csv
-import re
 
 url = "https://wanderlusttstg.wpengine.com//wp-json/wp/v2/users"
 users_csv_file = 'author_names.csv'
@@ -15,7 +12,6 @@ token = base64.b64encode(credentials.encode())
 header = {
         'Authorization': 'Basic ' + token.decode('utf-8')
     }
-
 try:
     with open(users_csv_file, 'r') as file:
         csv_reader = csv.DictReader(file)
@@ -24,7 +20,7 @@ try:
         next(csv_reader)  # Skip the header row
 
         for index, row in enumerate(csv_reader, start=1):
-            if index > 280:
+            if index > 1:
                 first_name = row.get('First Name')
                 second_name = row.get('Second Name')
                 payload = {
@@ -33,19 +29,10 @@ try:
                     'password': 'password',
                     'roles': ["author"]
                 }
-                # print(payload)
 
                 response = requests.request("POST", url, headers=header, data=payload)
                 if response.status_code == 201:
                     print(f'  {index} user {first_name} has been added')
                            
-            # print(extracted_data)
 except FileNotFoundError:
-        print(f"CSV file '{users_csv_file}' not found.")
-
-
-response = requests.get(url, headers=header)
-response = response.json()
-
-
-
+    print(f"CSV file '{users_csv_file}' not found.")
