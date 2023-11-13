@@ -117,40 +117,28 @@ def post_news(url, slug, title, article_body, date, post_status, featured_media_
 # Function to post the inspiration articles on Wordpress
 def post_inspiration(url, slug, article_title, author_id, author, date, article_body, post_status="draft", featured_media_id=0, standfirst="", destination_id_list=[], inspiration=[]):
     if len(destination_id_list):
-        post_data = {
-            'slug': slug,
-            'title': article_title,
-            'author': author_id,
-            'date': date,
-            "content": article_body,
-            "comment_status": "closed",
-            "categories": [1],
-            "status": post_status,
-            "featured_media": featured_media_id,
-            "excerpt": standfirst,
-            "inspiration": inspiration,
-            "acf": {
-                "destination": destination_id_list,
-                "wak_author_name": author,
-            }
+        acf = {
+            "destination": destination_id_list,
+            "wak_author_name": author,
         }
     else:
-        post_data = {
-            'slug' : slug,
-            'title': article_title,
-            'author': author_id,
-            'date': date,
-            "content": article_body,
-            "comment_status": "closed",
-            "categories": [1],
-            "status": post_status,
-            "featured_media": featured_media_id,
-            "excerpt": standfirst,
-            "inspiration": inspiration,
-            "acf": {
-                "wak_author_name": author,
-            }
+        acf = {
+            "wak_author_name": author,
         }
+    post_data = {
+        'slug': slug,
+        'title': article_title,
+        'author': author_id,
+        'date': date,
+        "content": article_body,
+        "comment_status": "closed",
+        "categories": [1],
+        "status": post_status,
+        "featured_media": featured_media_id,
+        "excerpt": standfirst,
+        "inspiration": inspiration,
+        "acf": acf
+    }
     try:
         
         response = requests.post(url, headers=header, json=post_data)
@@ -167,44 +155,32 @@ def post_inspiration(url, slug, article_title, author_id, author, date, article_
 # Function to post the promoted articles on Wordpress
 def post_promoted_article(url, slug, article_title, author_id, author, date, article_body, post_status="draft", featured_media_id=0, standfirst="", destination_id_list=[], inspiration=[], promoter_name=''):    
     if len(destination_id_list):
-        post_data = {
-            'slug': slug,
-            'title': article_title,
-            'author': author_id,
-            'date': date,
-            "content": article_body,
-            "comment_status": "closed",
-            "categories": [1],
-            "status": post_status,
-            "featured_media": featured_media_id,
-            "excerpt": standfirst,
-            "inspiration": inspiration,
-            "acf": {
-                "destination": destination_id_list,
-                "wak_author_name": author,
-                "promoter_name": promoter_name
-            }
+        acf = {
+            "destination": destination_id_list,
+            "wak_author_name": author,
+            "promoter_name": promoter_name
         }
     else:
-        post_data = {
-            'slug' : slug,
-            'title': article_title,
-            'author': author_id,
-            'date': date,
-            "content": article_body,
-            "comment_status": "closed",
-            "categories": [1],
-            "status": post_status,
-            "featured_media": featured_media_id,
-            "excerpt": standfirst,
-            "inspiration": inspiration,
-            "acf": {
-                "wak_author_name": author,
-                "promoter_name": promoter_name
-            }
+        acf = {
+            "wak_author_name": author,
+            "promoter_name": promoter_name
         }
+
+    post_data = {
+        'slug': slug,
+        'title': article_title,
+        'author': author_id,
+        'date': date,
+        "content": article_body,
+        "comment_status": "closed",
+        "categories": [1],
+        "status": post_status,
+        "featured_media": featured_media_id,
+        "excerpt": standfirst,
+        "inspiration": inspiration,
+        "acf": acf
+    }
     try:
-        
         response = requests.post(url, headers=header, json=post_data)
         if response.status_code == 201:
             print(f'  - Promoted articles has been posted "{article_title}" successfully!')
@@ -218,31 +194,23 @@ def post_promoted_article(url, slug, article_title, author_id, author, date, art
 
 #Function to update the already posted inspiration articles 
 def update_post_inspiration(post_id, slug, article_title, standfirst, author_id, author, date, destination_id_list):
-    
     if len(destination_id_list):
-        post_data = {
-            'slug': slug,
-            'title': article_title,
-            'excerpt': standfirst,
-            'author': author_id,
-            'date': date,
-            "acf": {
-                "destination": destination_id_list,
-                "wak_author_name": author,
-            }
+        acf = {
+            "destination": destination_id_list,
+            "wak_author_name": author,
         }
     else:
-        post_data = {
-            'slug' : slug,
-            'title': article_title,
-            'excerpt': standfirst,
-            'date': date,
-            'author': author_id,
-            "acf": {
-                "wak_author_name": author,
-            }
+        acf = {
+            "wak_author_name": author,
         }
-    
+    post_data = {
+        'slug': slug,
+        'title': article_title,
+        'excerpt': standfirst,
+        'author': author_id,
+        'date': date,
+        "acf": acf
+    }
     try:
         response = requests.post(f'{wp_inspiration_url}/{post_id}', headers=header, json=post_data)
         if response.status_code == 200:
@@ -266,6 +234,45 @@ def post_file(file_path):
         response = ""
         return 0
     return image_id
+
+# Function to post the quiz
+def post_quiz(url, slug, title, author_id, article_body , date, post_status, category, featured_media_id, destination, questions ):
+    if len(destination):
+        acf = {
+                "destination": destination,
+                "questions": questions
+            }
+    else:
+        acf =  {
+            "questions": questions
+        }
+    
+    post_data = {
+        "slug": slug,
+        "title": title,
+        "author": author_id,
+        "content": article_body,
+        "comment_status": "closed",
+        "inspiration": category,
+        "status": post_status,
+        "featured_media": featured_media_id,  
+        "acf": acf   
+    }
+
+    if date:
+        post_data['date'] = date
+
+    try:
+        response = requests.post(url, headers=header, json=post_data)
+        if response.status_code == 201:
+            print(f'  - quiz has been posted "{title}" successfully!')
+        else:
+            print(f'Error creating custom quiz. Status code: {response.status_code}')
+            error_log.append(f'Error creating custom quiz. {slug} Status code: {response.status_code} text: {response.text}')
+    except:
+        print (f"Error while posting the quiz! '{title}'")
+        error_log.append(f"Error while posting the quiz! '{title}'")
+        response = ""
 
 # Function to get the country list from the WP destinations
 def get_country_id_list(index, countries):        
@@ -1299,8 +1306,11 @@ def process_quiz():
         csvfile.seek(0)     # Reset the file position to the beginning
         # next(reader)        # Skip the header row
         for index, row in enumerate(reader, start=1):
-            url = row['URL']            
-            if url and index == 35:
+            url = row['URL']       
+            quiz_content = ''     
+            questions = []
+            
+            if url and index == 1:
                 print(f"# Start Scraping ({index}): {url}")
                 # get inspiration category list from CSV
                 category_text = row['Content']
@@ -1321,6 +1331,7 @@ def process_quiz():
                 # Get the slug name from the URL
                 url_parts = urlparse(url)
                 slug = quote(url_parts.path.strip('/')).replace('/', '_')
+                
                 image_folder = os.path.join(base_quiz_image_folder, slug)
                 os.makedirs(image_folder, exist_ok=True)
                 
@@ -1337,6 +1348,7 @@ def process_quiz():
                         quiz_items = trivia_block.find_all('div', class_='quizItem')
                         
                         for quiz_item in quiz_items:
+                            answers_list = []
                             # Initialize dictionaries to store data for each row
                             data_row = {
                                 'URL': url,
@@ -1387,33 +1399,63 @@ def process_quiz():
                             # Concatenate answers if multiple
                             data_row['Answers'] = ', '.join(answers)  # Updated column name
                             data_row['Correct Answer'] = correct_answer
-                            
-                            # Get additional information
-                            byline = soup.find('h4', class_='byline')
-                            # Split the byline by '|' and extract Author and Date
-                            byline_parts = byline.text.strip().split('|')
-                            if len(byline_parts) == 2:
-                                author, date = byline_parts[0].strip(), byline_parts[1].strip()
-                            else:
-                                author, date = '', byline.text.strip()
-                            
-                            # Find the author id from the WP via api
-                            author_id = 23   # default author is team wanderlust                            
-                            author_id = get_author_id_list(index, author)
-                            data_row['Author'] = author_id
 
-                            # convert the date as preferred format
+                            # Making the questions list
+                            image_id = 0
+                            if data_row['Image']:
+                                image_id = post_file(data_row['Image'])
+                            
+                            
+                            for answer in answers:
+                                correct_answer_flag = False
+                                if correct_answer == answer:
+                                    correct_answer_flag = True
+                                answers_list.append({
+                                    'answer_text': answer,
+                                    'correct_answer': correct_answer_flag
+                                })
+                            questions.append({
+                                'question_title': data_row['Question'],
+                                'image': image_id,
+                                'answers': answers_list
+                            })
+
+
+                            
+                        # Get additional information
+                        byline = soup.find('h4', class_='byline')
+                        # Split the byline by '|' and extract Author and Date
+                        byline_parts = byline.text.strip().split('|')
+                        if len(byline_parts) == 2:
+                            author, date = byline_parts[0].strip(), byline_parts[1].strip()
+                        else:
+                            author, date = '', byline.text.strip()
+                        
+                        # Find the author id from the WP via api
+                        author_id = 23   # default author is team wanderlust                            
+                        author_id = get_author_id_list(index, author)
+                        data_row['Author'] = author_id
+
+                        # convert the date as preferred format
+                        if ':' in date:
+                            date = date.split(':')[-1]
+                            date = date.strip()
+                        try:
                             date = convert_date_style(date)
-                            data_row['Date'] =date
-
-                            title = soup.find('h1')
-                            if title:
-                                title_text = title.text
-                                title = title_text.split('Quiz:')[1]
-                                data_row['Title'] = title
-                            
-                            intro_text = soup.find('div', class_='textSection')
-                            if intro_text:
+                            data_row['Date'] = date
+                        except Exception as e:
+                            print(f'  - convert date failed. date: {date}')
+                            date = ''
+                            error_log.append(f' convert date filed. index: {index}, date: {date}')
+                                
+                        title = soup.find('h1')
+                        if title:
+                            title_text = title.text
+                            title = title_text.split('Quiz:')[1]
+                            data_row['Title'] = title
+                        
+                        intro_text = soup.find('div', class_='textSection')
+                        if intro_text:
                                 intro_paragraphs = intro_text.find_all('p')
                                 intro_text_list = []
                                 for paragraph in intro_paragraphs:
@@ -1421,28 +1463,28 @@ def process_quiz():
                                         intro_text_list.append(paragraph.text)
                                 data_row['Quiz Intro Text'] = ' '.join(intro_text_list)
                             
-                            # Get featured image
-                            featured_image = soup.find('picture', class_='w-100')
-                            if featured_image:
-                                # This is in case the header image is picture
-                                featured_image_source = featured_image.find('img')
-                                if featured_image_source and 'src' in featured_image_source.attrs:
-                                    featured_image_url = featured_image_source['src']
-                                    
-                                    # Combine the base URL with the featured_image_url
-                                    complete_featured_image_url = urljoin(url, featured_image_url)
-                                    
-                                    featured_image_filename = os.path.basename(urlparse(complete_featured_image_url).path)
-                                    featured_image_path = os.path.join(image_folder, featured_image_filename)
-                                    data_row['Featured Image'] = featured_image_path
-                                    featured_image_source['src'] = featured_image_path
-                                    
-                                    # Download featured image
-                                    response = requests.get(complete_featured_image_url)
-                                    if response.status_code == 200:
-                                        with open(featured_image_path, 'wb') as img_file:
-                                            img_file.write(response.content)
-                            else:
+                        # Get featured image
+                        featured_image = soup.find('picture', class_='w-100')
+                        if featured_image:
+                            # This is in case the header image is picture
+                            featured_image_source = featured_image.find('img')
+                            if featured_image_source and 'src' in featured_image_source.attrs:
+                                featured_image_url = featured_image_source['src']
+                                
+                                # Combine the base URL with the featured_image_url
+                                complete_featured_image_url = urljoin(url, featured_image_url)
+                                
+                                featured_image_filename = os.path.basename(urlparse(complete_featured_image_url).path)
+                                featured_image_path = os.path.join(image_folder, featured_image_filename)
+                                data_row['Featured Image'] = featured_image_path
+                                featured_image_source['src'] = featured_image_path
+                                
+                                # Download featured image
+                                response = requests.get(complete_featured_image_url)
+                                if response.status_code == 200:
+                                    with open(featured_image_path, 'wb') as img_file:
+                                        img_file.write(response.content)
+                        else:
                                 # This is in case the header image is in backgroud image like News.
                                 # Find the header image in @media query with max-width: 2000px
                                 header_images = []
@@ -1478,7 +1520,48 @@ def process_quiz():
                                         else:    
                                             data_row['Featured Image'] = ''
                             
-
+                        # upload header image and get featured image id
+                        featured_media_id = 0
+                        if data_row['Featured Image']:
+                            featured_media_id = post_file(data_row['Featured Image'])
+                        
+                        slug = url.split('/')[-1]
+                        
+                        # make the quiz content with header and spacer
+                        wp_quiz_header = {
+                            "name":"wak/quiz-header",
+                            "data":{
+                                "wak_block_visibility":"all",
+                                "_wak_block_visibility":"field_650026fcbd7ef",
+                                "title": data_row['Title'],
+                                "_title":"field_65521bdb36ce7",
+                                "copy": data_row['Quiz Intro Text'],
+                                "_copy":"field_65521bf736ce8"
+                                },
+                            "mode":"edit"
+                        }
+                        quiz_content += '<!-- wp:wak/quiz-header ' + json.dumps(wp_quiz_header) + ' /-->'
+                        wp_spacer = {
+                            "name":"wak/spacer",
+                            "data":{
+                                "wak_block_visibility":"all",
+                                "_wak_block_visibility":"field_650026fcbd7ef",
+                                "mobile_space":"90",
+                                "_mobile_space":"field_640b5ee49f5e1",
+                                "tablet_space":"90",
+                                "_tablet_space":"field_640b5f569f5e2",
+                                "desktop_space":"110",
+                                "_desktop_space":"field_640b5f7a9f5e3",
+                                "theme":"0",
+                                "_theme":"field_650c350093ab8"
+                                },
+                            "mode":"edit"
+                        }
+                        quiz_content += '<!-- wp:wak/spacer ' + json.dumps(wp_spacer) + ' /-->'
+                        
+                        # post the quiz on WP.
+                        post_quiz(wp_quiz_url, slug, data_row['Title'], author_id, quiz_content, date, 'publish', category_id_list, featured_media_id, destination_id_list, questions)
+                        
                         print(f"  - Data for URL '{url}' has been scraped") 
                                                
                 else:
