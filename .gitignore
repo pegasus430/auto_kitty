@@ -1,3 +1,5 @@
 *.js
 *.csv
 /content
+/export
+/__MACOSX
