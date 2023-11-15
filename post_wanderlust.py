@@ -1310,7 +1310,7 @@ def process_quiz():
             quiz_content = ''     
             questions = []
             
-            if url and index == 1:
+            if url:
                 print(f"# Start Scraping ({index}): {url}")
                 # get inspiration category list from CSV
                 category_text = row['Content']
@@ -1404,6 +1404,10 @@ def process_quiz():
                             image_id = 0
                             if data_row['Image']:
                                 image_id = post_file(data_row['Image'])
+                                if image_id == 0:
+                                    error_log.append(f' - index {index}th quiz , no post image file')    
+                            else:
+                                error_log.append(f' - index {index}th quiz , no post image file')
                             
                             
                             for answer in answers:
@@ -1451,7 +1455,10 @@ def process_quiz():
                         title = soup.find('h1')
                         if title:
                             title_text = title.text
-                            title = title_text.split('Quiz:')[1]
+                            if 'Quiz:' in title_text:
+                                title = title_text.split('Quiz:')[1]
+                            else:
+                                title = title_text
                             data_row['Title'] = title
                         
                         intro_text = soup.find('div', class_='textSection')
@@ -1562,11 +1569,12 @@ def process_quiz():
                         # post the quiz on WP.
                         post_quiz(wp_quiz_url, slug, data_row['Title'], author_id, quiz_content, date, 'publish', category_id_list, featured_media_id, destination_id_list, questions)
                         
-                        print(f"  - Data for URL '{url}' has been scraped") 
                                                
                 else:
                     print(f"  - Failed to fetch URL '{url}' (status code: {response.status_code})")
                     error_log.append(f"Failed to fetch index {index} URL '{url}' (status code: {response.status_code})")
+
+                print("error log", error_log)
 
 def main():
     # process_post_news()
