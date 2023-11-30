@@ -16,7 +16,9 @@ content_image_directory = 'content/content_images'
 
 # Create a quize folder for storing downloaded images
 base_quiz_image_folder = 'quiz_images'
+base_shorthand_image_folder = 'shorthand_images'
 os.makedirs(base_quiz_image_folder, exist_ok=True)
+os.makedirs(base_shorthand_image_folder, exist_ok=True)
 
 # Create the image directories if they don't exist
 os.makedirs(image_directory, exist_ok=True)
@@ -29,6 +31,7 @@ ins_csv_file = 'articles_inspiration_urls.csv'
 promoted_csv_file = 'promoted_articles.csv'
 users_csv_file = 'author_names.csv'
 quiz_csv_file = 'quiz.csv'
+shorthand_csv_file = 'shorthand.csv'
 
 # Initialize a list to store extracted data
 error_log = []
@@ -1576,13 +1579,14 @@ def process_quiz():
 
                 print("error log", error_log)
 
+
 def main():
     # process_post_news()
-    # process_inspiration()
+    process_inspiration()
     # process_promoted_articles()
     # update_promoted_articles()
     # process_users()
-    process_quiz()
+    # process_quiz()
     if len(error_log):
         print(error_log)
     else:
